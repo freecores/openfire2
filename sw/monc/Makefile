@@ -14,10 +14,10 @@ $(PRJ).srec: $(PRJ).out
 	..\..\utils\bin2rom $(PRJ).bin $(PRJ).rom
 
 $(OBJS): $(SRCS)
-	mb-gcc -B. -mno-xl-soft-mul -c -Wa,-ahlms=$(@:.o=.lst) -o $@ $(@:.o=.c)
+	mb-gcc -O2 -I . -I ../lib -mno-xl-soft-mul -c -Wa,-ahlms=$(@:.o=.lst) -o $@ $(@:.o=.c)
 
 $(PRJ).out: $(CRT).o  $(OBJS)
-	mb-ld -T $(LINK) -Map=$(PRJ).map -o $(PRJ).out $(CRT).o $(OBJS)
+	mb-ld -L ../lib -T $(LINK) -Map=$(PRJ).map -o $(PRJ).out $(CRT).o $(OBJS) -lio
         
 clean:
 	-rm *.o

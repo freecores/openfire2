@@ -43,6 +43,9 @@ SOFTWARE.
 `include "openfire_define.v"
 
 module openfire_regfile (
+`ifdef FSL_LINK
+	fsl_s_data,
+`endif
 	reset, clock,
 	regA_addr, regB_addr, regD_addr, result, pc_regfile,
 	dmem_data, regfile_input_sel, we_regfile,
@@ -50,25 +53,21 @@ module openfire_regfile (
 	regA, regB, regD, enable
 );
 
-// From top level
-input 		reset;
+input 		reset;				// From top level
 input 		clock;
-
-// From DECODE
-input	[4:0]		regA_addr;
+input	[4:0]		regA_addr;		// From DECODE
 input	[4:0]		regB_addr;
 input	[4:0]		regD_addr;
 input	[3:0]		regfile_input_sel;
 input				we_alu_branch;
-
-// From EXECUTE
-input	[31:0]	result;
+input	[31:0]	result;			// From EXECUTE
 input	[`A_SPACE+1:0]	pc_regfile;
 input				we_regfile;
 input				enable;
-
-// From DMEM
-input	[31:0]	dmem_data;
+input	[31:0]	dmem_data;		// From DMEM
+`ifdef FSL_LINK
+input	[31:0]	fsl_s_data;		// From FSL
+`endif
 
 output [31:0]	regA;
 output [31:0]	regB;
@@ -91,7 +90,7 @@ assign extended_pc[`A_SPACE+1:0]  = pc_regfile;
 // Input select into REGFILE
 always@(
 `ifdef FSL_LINK
-			// todo
+			fsl_s_data or
 `endif
 			dmem_data or extended_pc or result or regfile_input_sel or write_en or clock
 )
@@ -103,7 +102,7 @@ begin
 	`RF_alu_result:		input_data <= result;
 	`RF_pc:					input_data <= extended_pc;
 `ifdef FSL_LINK
-	`RF_fsl:					//todo
+	`RF_fsl:					input_data <= fsl_s_data;
 `endif
 	default:
 		begin

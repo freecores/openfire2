@@ -78,12 +78,16 @@ module SRAM256KX16(ce_n, we_n, oe_n, ub_n, lb_n, addr, io);
 		if(~we_n & ~ce_n & ~lb_n)
 		begin
 			meml[addr % MAX_RAM] = io[7:0];
+			`ifdef SHOW_SRAM_DATA
 			$display(" write LOW:  meml[%d(%d)]=%d", addr, addr % MAX_RAM, meml[addr % MAX_RAM]);
+			`endif
       end
       if(~we_n & ~ce_n & ~ub_n)
 		begin
 			memh[addr % MAX_RAM] = io[15:8];
+			`ifdef SHOW_SRAM_DATA
 			$display(" write HIGH:  memh[%d(%d)]=%d", addr, addr % MAX_RAM, memh[addr % MAX_RAM]);
+			`endif
 		end   
 	end
 

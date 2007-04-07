@@ -127,7 +127,14 @@ begin
 							 end 
 							end
 		`BARREL_SHIFT: $display("error: barrel shift not implemented");
-		`FSL			 : $display("error: fsl not implemented");
+		`FSL			 : begin
+								if(~`FSL_nblock) 	op[1:8] = "n";
+								if(`FSL_control) 	op[9:16] = "c";
+								if(`fsl_get_put)  op[17:40] = "put";
+								else              op[17:40] = "get";
+								rA = 0;
+								rB_IMM = 3;
+						   end
 		`FP_OP		 : $display("error: floating point not implemented");
 		`DIVIDE		 : $display("error: divide not implemented");
 		`IMMEDIATE	 : begin
@@ -236,6 +243,11 @@ begin
 	  if(rA == 0) arg2[1:32] = "    "; 
 	  if(rB_IMM == 0) arg3[1:80] = "          ";
 	  else if(rB_IMM == 2) arg3[1:32] = registro_especial(`regS_sel_msr);
+	  else if(rB_IMM == 3) 
+	  begin
+	  	arg3[1:24] = "FSL";
+		arg3[25:32] = "0" + instruction[2:0];
+	  end
 	  if(rD && rA) arg1[25:32] = ",";	// parameter separators
 	  if(rA && rB_IMM) arg2[25:32] = ",";
 	  if(rD && rB_IMM) arg2[25:32] = ",";

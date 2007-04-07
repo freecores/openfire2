@@ -1,5 +1,14 @@
-all:
-	mb-gcc -c -mno-xl-soft-mul -c -Wa,-ahlms=uart1io.lst -o uart1io.o uart1io.c
+PRJ  = io
+SRCS = __errno.c inbyte.c outbyte.c havebyte.c uart1_printchar.c uart1_printline.c uart1_readchar.c \
+       uart1_readline.c gethexstring.c puthexstring.c
+OBJS = $(SRCS:.c=.o)
+
+lib$(PRJ): $(OBJS)
+	--rm lib$(PRJ).a
+	mb-ar q lib$(PRJ).a $(OBJS)
+
+$(OBJS): $(SRCS)
+	mb-gcc -O2 -B. -mno-xl-soft-mul -c -Wa,-ahlms=$(@:.o=.lst) -o $@ $(@:.o=.c)
 
 clean:
 	-rm *.o
@@ -12,3 +21,4 @@ clean:
 	-rm *.srec
 	-rm *.prom
 	-rm *.rom
+	-rm *.a

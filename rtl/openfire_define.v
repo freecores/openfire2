@@ -84,8 +84,13 @@ SOFTWARE. */
 //`define DEBUG_FETCH
 //`define DEBUG_DECODE
 //`define DEBUG_EXECUTE
-`define DEBUG_FILE_SRAM "..\\sw\\sample2\\sample.rom"	// ROM file to be loaded at SRAM base
-`define MAX_SIMULATION_SRAM	4096		// in 32 bit words
+`define DEBUG_FILE_SRAM "..\\sw\\test-int\\sample.rom"	// ROM file to be loaded at SRAM base
+`define MAX_SIMULATION_SRAM	8096		// in 32 bit words
+//`define SHOW_SRAM_DATA					// show sram write contents
+
+// start address after a reset
+//`define RESET_PC_ADDRESS	32'h0400_0000	// start at sram (only for simulation!!!)
+`define RESET_PC_ADDRESS	32'h0000_0000	// default start PC
 
 `define ENABLE_INTERRUPTS	// enable interrupt handling & MSR[IE] bit
 //`define ENABLE_MSR_BIP		// enables MSR[BIP] processing
@@ -96,7 +101,7 @@ SOFTWARE. */
 //`define ENABLE_ALIGNMENT_EXCEPTION	// generates exception on memory read/write unalignment
 //`define ENABLE_OPCODE_EXCEPTION		// generates exception on invalid opcode
 `endif
-//`define FSL_LINK
+//`define FSL_LINK				// enable FSL link opcodes (one port only)
 
 // Optional CMPU instruction requires a 32-bit comparator
 // To enable CMPU support, leave only one of the following two options uncommented

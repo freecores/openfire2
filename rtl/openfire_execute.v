@@ -75,6 +75,11 @@ module openfire_execute (
 `ifdef ENABLE_ALIGNMENT_EXCEPTION
 	dmem_alignment_exception,
 `endif
+`ifdef FSL_LINK
+	fsl_m_control, fsl_m_write, fsl_s_read,
+	fsl_cmd_vld, fsl_get, fsl_blocking, fsl_control,	//FSL
+	fsl_m_full, fsl_s_control, fsl_s_exists,
+`endif
 	clock, reset, stall,											// top level
 	immediate, pc_exe, alu_inputA_sel, alu_inputB_sel, // inputs
 	alu_inputC_sel, alu_fns_sel, comparator_fns_sel,	
@@ -129,6 +134,18 @@ output			insert_exception;
 `ifdef ENABLE_ALIGNMENT_EXCEPTION
 input				dmem_alignment_exception;
 `endif
+`ifdef FSL_LINK
+input			fsl_get;
+input			fsl_control;
+input			fsl_blocking;
+input			fsl_cmd_vld;
+input			fsl_s_control;		//From FSL
+input			fsl_s_exists;
+input			fsl_m_full;
+output		fsl_m_control;
+output		fsl_m_write;
+output		fsl_s_read;
+`endif
 
 // From REGFILE
 input	[31:0]	regA;
@@ -156,6 +173,13 @@ reg	[31:0]	alu_a_input;
 reg	[31:0]	alu_b_input;
 reg				alu_c_input;
 reg				MSB_signed_compare;
+
+`ifdef FSL_LINK
+reg			fsl_complete;
+reg			fsl_m_write;
+reg			fsl_s_read;
+reg			fsl_m_control;
+`endif
 
 wire			alu_multicycle_instr;
 wire			alu_multicycle_instr_complete;
@@ -193,14 +217,10 @@ wire	 can_interrupt  = 							// cpu can be interrupted if...
 						   ~MSR[`MSR_EIP] &			// no Exception in Progress
 `endif
 `ifdef ENABLE_MSR_BIP
-							~MSR[`MSR_BIP] & (		// no Break in Progress
+							~MSR[`MSR_BIP] & 			// no Break in Progress
 `endif
-							 ~int_ip | set_msr_ie	// not interrupt in progress 
-`ifdef ENABLE_MSR_BIP								// and interrupts are enabled
-							 )
-`endif
-							;
-`endif
+							(~int_ip | set_msr_ie);	// not interrupt in progress 
+`endif													// and interrupts are enabled
 
 assign branch_taken  = branch_instr ? compare_out : 0;
 assign pc_branch     = alu_out_internal[`A_SPACE+1:0];	// ALU calculates next instr address
@@ -215,8 +235,16 @@ assign dmem_re							= we_load  & ~stall;
 assign memory_instr					= we_load | we_store;
 assign memory_instr_complete		= memory_instr & dmem_done;
 
-assign multicycle_instr 			= memory_instr | alu_multicycle_instr;
-assign multicycle_instr_complete = memory_instr_complete | alu_multicycle_instr_complete;
+assign multicycle_instr 			= 
+`ifdef FSL_LINK
+												fsl_cmd_vld |
+`endif
+												memory_instr | alu_multicycle_instr;
+assign multicycle_instr_complete = 
+`ifdef FSL_LINK
+												fsl_complete |
+`endif
+												memory_instr_complete | alu_multicycle_instr_complete;
 
 assign instr_complete 				= ~multicycle_instr | multicycle_instr_complete;
 assign we_regfile 					= (we_load & dmem_done) | alu_multicycle_instr_complete;
@@ -260,6 +288,11 @@ begin
 `endif
 `ifdef ENABLE_MSR_BIP
 		   MSR[`MSR_BIP`]	  <= 0;	// Break In Progress
+`endif
+`ifdef	FSL_LINK
+			fsl_complete	<= 0;
+			fsl_m_write 	<= 0;
+			fsl_s_read		<= 0;			
 `endif
 		end
 	else if (~stall)
@@ -306,7 +339,54 @@ begin
 			if ((alu_fns_sel == `ALU_shiftR_arth) | (alu_fns_sel == `ALU_shiftR_log) | 
 				(alu_fns_sel == `ALU_shiftR_c))
 				MSR[`MSR_C]	<= regA[0];
-				
+`ifdef FSL_LINK
+			// FSL get & put commands
+			// Reset control signals after write / read
+			if ((fsl_cmd_vld & fsl_complete) | ~fsl_cmd_vld)
+				begin
+					fsl_s_read		<= 0;
+					fsl_complete	<= 0;
+					fsl_m_write		<= 0;
+				end
+			else if (fsl_cmd_vld & ~fsl_get & ~fsl_blocking) // nonblocking put
+				begin
+					fsl_complete 	<= 1;
+					MSR[`MSR_C]		<= fsl_m_full;		//**CHECK**
+					if (~fsl_m_full)
+						begin
+							fsl_m_write 	<= 1;
+							fsl_m_control 	<= fsl_control;
+						end
+				end
+			else if (fsl_cmd_vld & fsl_get & ~fsl_blocking) // nonblocking get
+				begin
+					fsl_complete 	<= 1;
+					fsl_s_read 	<= 1;
+					MSR[`MSR_C] <= ~fsl_s_exists;		//**CHECK**
+					if (fsl_s_exists)
+						we_load_dly <= 1;
+					if (fsl_s_control == fsl_control)
+						MSR[`MSR_FSL_Err]	<= 0;	// MSR[4] = FSL_Error bit
+					else
+						MSR[`MSR_FSL_Err]	<= 1;
+				end
+			else if (fsl_cmd_vld & ~fsl_get & ~fsl_m_full & fsl_blocking) // blocking put
+				begin
+					fsl_complete 	<= 1;
+					fsl_m_write 	<= 1;
+					fsl_m_control 	<= fsl_control;
+				end
+			else if (fsl_cmd_vld & fsl_get & fsl_s_exists & fsl_blocking) // blocking get
+				begin
+					fsl_complete 	<= 1;
+					we_load_dly 	<= 1;
+					fsl_s_read	<= 1;
+					if (fsl_s_control == fsl_control)
+						MSR[`MSR_FSL_Err]	<= 0;
+					else
+						MSR[`MSR_FSL_Err]	<= 1;
+				end
+`endif // End FSL extensions				
 `ifdef DEBUG_EXECUTE
 		$display("EXECUTE: pc_exe=%x", pc_exe);
 `endif

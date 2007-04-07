@@ -51,6 +51,10 @@ module openfire_cpu (
 `ifdef ENABLE_ALIGNMENT_EXCEPTION
 	dmem_alignment_exception,
 `endif
+`ifdef FSL_LINK
+	fsl_s_data, fsl_s_control, fsl_s_exists, fsl_m_full,
+	fsl_m_data, fsl_m_control, fsl_m_write, fsl_s_read, pc,
+`endif
 	dmem_addr,	dmem_data_in, dmem_data_out, 						// ins/data ports
 	dmem_we, 	dmem_re,		  dmem_input_sel, dmem_done,
 	imem_addr,	imem_data_in, imem_re, 		  	imem_done
@@ -67,6 +71,17 @@ input				interrupt;
 `endif
 `ifdef ENABLE_ALIGNMENT_EXCEPTION
 input				dmem_alignment_exception;
+`endif
+`ifdef FSL_LINK
+input	[31:0]	fsl_s_data;
+input				fsl_s_control;
+input				fsl_s_exists;
+input				fsl_m_full;
+output [31:0]	fsl_m_data;
+output			fsl_m_control;
+output			fsl_m_write;
+output			fsl_s_read;
+output [31:0]	pc;
 `endif
 
 output [31:0]	dmem_data_out;
@@ -112,23 +127,32 @@ wire			flush;
 wire			branch_instr;
 
 `ifdef ENABLE_MSR_BIP
-wire		update_msr_bip;
-wire		value_msr_bip;
+wire			update_msr_bip;
+wire			value_msr_bip;
 `endif
 `ifdef ENABLE_INTERRUPTS
-wire 		int_ip;
-wire		int_dc;
-wire		set_msr_ie;
+wire 			int_ip;
+wire			int_dc;
+wire			set_msr_ie;
 `endif
 `ifdef ENABLE_EXCEPTIONS
-wire	reset_msr_eip;
-wire	insert_exception;
+wire			reset_msr_eip;
+wire			insert_exception;
 `endif
 `ifdef ENABLE_OPCODE_EXCEPTION
-wire 	opcode_exception;
+wire 			opcode_exception;
 `endif
 `ifdef ENABLE_MSR_OPCODES
-wire	rS_update;
+wire			rS_update;
+`endif
+`ifdef FSL_LINK
+wire			fsl_get;
+wire			fsl_cmd_vld;
+wire			fsl_control;
+wire			fsl_blocking;
+
+assign fsl_m_data = {{(32-`D_WIDTH){1'b0}},regA}; // zero pad FSL to 32-bits
+assign pc = {{(32-`A_SPACE+2){1'b0}}, pc_exe_rf};
 `endif
 
 openfire_fetch	FETCH (
@@ -163,6 +187,12 @@ openfire_decode	DECODE (
 `endif
 `ifdef ENABLE_MSR_OPCODES
 	.rS_update(rs_update),
+`endif
+`ifdef FSL_LINK
+	.fsl_get(fsl_get), 
+	.fsl_control(fsl_control), 
+	.fsl_blocking(fsl_blocking), 
+	.fsl_cmd_vld(fsl_cmd_vld),
 `endif
 	.clock(clock), 
 	.stall(stall_decode),
@@ -214,6 +244,18 @@ openfire_execute 	EXECUTE (
 `ifdef ENABLE_MSR_OPCODES
 	.rS_update(rs_update),
 `endif
+`ifdef FSL_LINK
+	.fsl_m_control(fsl_m_control), 
+	.fsl_m_write(fsl_m_write), 
+	.fsl_s_read(fsl_s_read), 
+	.fsl_cmd_vld(fsl_cmd_vld), 
+	.fsl_get(fsl_get),
+	.fsl_blocking(fsl_blocking), 
+	.fsl_control(fsl_control), 
+	.fsl_s_exists(fsl_s_exists),
+	.fsl_m_full(fsl_m_full), 
+	.fsl_s_control(fsl_s_control),
+`endif
 	.clock(clock), 
 	.reset(reset), 
 	.stall(stall_exe), 
@@ -244,6 +286,9 @@ openfire_execute 	EXECUTE (
 );
 	
 openfire_regfile 	REGFILE (
+`ifdef FSL_LINK
+	.fsl_s_data(fsl_s_data),
+`endif
 	.reset(reset), 
 	.clock(clock), 
 	.regA_addr(regA_addr),

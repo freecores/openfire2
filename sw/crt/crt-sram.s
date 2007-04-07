@@ -11,8 +11,8 @@
 	.align 2
 	.ent _start
 _start:
+	nop				/* to help simulation external program without block ram */
 	/* todo : initialize system vectors */
-
 					/* Set the Small Data Anchors and the Stack pointer  */
 	la r13, r0, _SDA_BASE_
 	la r2, r0, _SDA2_BASE_

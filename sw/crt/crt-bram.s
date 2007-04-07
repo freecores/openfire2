@@ -18,21 +18,16 @@
 #       # 0x20 #                Imm instr for hw exception address   [Hi halfword]
 #       # 0x24 #                Jump instr to hw exception handler   [Lo halfword]                        
 
-	.globl _start
+			.globl _start
+			.align 2
+			.ent _start
+_start:			brai    _start1
+_vector_sw_exception:	brai    _exception_handler
+_vector_interrupt:      brai    _interrupt_handler
+_vector_breakpoint:	brai	_breakpoint_handler
+_vector_hw_exception:	brai    _hw_exception_handler
 
-	.align 2
-	.ent _start
-_start:
-        bri     _start1                 # 0x00		# reset vector
-        nop                             # 0x04
-        nop                             # 0x08          # Reserve space for software exception vector
-        nop                             # 0x0c
-        nop                             # 0x10          # Reserve space for interrupt vector
-        nop                             # 0x14
-        nop                             # 0x18          # Reserve space for breakpoint vector
-        nop                             # 0x1c
-        nop                             # 0x18          # Reserve space for hw exception vector
-        nop                             # 0x1c        
+/* ------ crt starts here --------- */
 
 _start1:				/* Set the Small Data Anchors and the Stack pointer  */
 	la r13, r0, _SDA_BASE_
@@ -65,8 +60,13 @@ _crtinit:				/* clear sbss */
 	nop				# fall throught to exit
         .end _start
 
+_exception_handler:
+_interrupt_handler:
+_breakpoint_handler:
+_hw_exception_handler:
+
         .globl exit                  	# exit library call 
         .ent exit        
 exit:
-	bri	exit
+	bri _start1
 	.end exit        

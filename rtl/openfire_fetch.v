@@ -83,8 +83,8 @@ always@(posedge clock)
 begin
 	if (reset)
 	begin
-		pc_fetch 	 <= 0;
-		pc_decode 	 <= 0;
+		pc_fetch 	 <= `RESET_PC_ADDRESS;
+		pc_decode 	 <= `RESET_PC_ADDRESS;
 		imem_re		 <= 1;
 		instruction  <= `NoOp;		// Execute NoOp on reset
 	end

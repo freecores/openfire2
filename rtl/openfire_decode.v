@@ -81,6 +81,9 @@ module openfire_decode(
 `ifdef ENABLE_MSR_OPCODES
 	rS_update,
 `endif
+`ifdef FSL_LINK
+	fsl_get, fsl_control, fsl_blocking, fsl_cmd_vld,	// fsl signals
+`endif
 	clock, stall, reset,											// top level
 	pc_decode, instruction, flush,							// inputs
 	regA_addr, regB_addr, regD_addr, immediate, 			// outputs
@@ -139,6 +142,12 @@ output				reset_msr_eip;
 `ifdef ENABLE_MSR_OPCODES
 output				rS_update;
 `endif
+`ifdef FSL_LINK
+output			fsl_get;
+output			fsl_control;
+output			fsl_blocking;
+output			fsl_cmd_vld;
+`endif
 
 // Register All Outputs
 reg	[31:0]	immediate;
@@ -175,6 +184,12 @@ reg				reset_msr_eip;
 `endif
 `ifdef ENABLE_MSR_OPCODES
 reg				rS_update;
+`endif
+`ifdef FSL_LINK
+reg			fsl_get;
+reg			fsl_control;
+reg			fsl_blocking;
+reg			fsl_cmd_vld;
 `endif
 
 // Internal registers
@@ -226,6 +241,12 @@ begin
 `ifdef ENABLE_MSR_OPCODES
 		rS_update			<= 0;
 `endif
+`ifdef FSL_LINK
+		fsl_control			<= 0;
+		fsl_get				<= 0;
+		fsl_blocking		<= 0;
+		fsl_cmd_vld			<= 0;
+`endif
 `ifdef DEBUG_DECODE
 		$display("DECODE RESET/FLUSH: pc_exe=%x", pc_exe);
 `endif
@@ -268,6 +289,12 @@ begin
 `endif
 `ifdef ENABLE_MSR_OPCODES
 		rS_update			<= 0;
+`endif
+`ifdef FSL_LINK
+		fsl_control			<= 0;
+		fsl_get				<= 0;
+		fsl_blocking		<= 0;
+		fsl_cmd_vld			<= 0;
 `endif
 `ifdef ENABLE_OPCODE_EXCEPTION
 // CPU asks to insert exception break:  "brali r17,0x20"
@@ -420,7 +447,14 @@ begin
 			end
 `ifdef FSL_LINK
 		`FSL:
-				$display("ERROR! FSL not implemented");
+			begin
+				fsl_control			<= `FSL_control;
+				fsl_get				<= ~`fsl_get_put;
+				fsl_blocking		<= ~`FSL_nblock;
+				fsl_cmd_vld			<= 1;
+				we_alu_branch 		<= 0;
+				regfile_input_sel	<= `RF_fsl;
+			end
 `endif
 `ifdef MUL
 		`MULTIPLY:	
